@@ -1,0 +1,13 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.env
+qdrant_storage/
+axiom_traces/
+proof_*.py
+.DS_Store
+*.gguf
+*.bin

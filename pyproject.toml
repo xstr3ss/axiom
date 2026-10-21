@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axiom-engine"
+version = "0.1.0"
+description = "Autonomous Self-Healing & Z3 Formally Verified Coding Agent"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Shyam Shukla"}
+]
+dependencies = [
+    "qdrant-client>=1.9.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "groq>=0.9.0",
+    "z3-solver>=4.12.0",
+    "pytest>=8.0.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0"
+]
+
+[project.scripts]
+axiom = "axiom_cli:main"
+
+[tool.setuptools]
+py-modules = [
+    "ast_pruner",
+    "auto_harvester",
+    "auto_watcher",
+    "axiom_cli",
+    "backend_main",
+    "bug_resolution_store",
+    "build_1_lakh_curriculum",
+    "build_master_datasets",
+    "chat",
+    "check_groq",
+    "ci_target",
+    "clean_workspace",
+    "cli",
+    "config",
+    "critic",
+    "dashboard",
+    "data_cleaner",
+    "diff_engine",
+    "distiller",
+    "docker_sandbox",
+    "engine",
+    "enterprise_db",
+    "explorer",
+    "export_dataset",
+    "export_training_data",
+    "fable_daily_forge",
+    "fable_health_check",
+    "fable_master_forge",
+    "file_parser",
+    "fix_discovery",
+    "fix_engine_fallthrough",
+    "fix_indexer",
+    "fix_locks",
+    "fix_prompt",
+    "forge_bulk_trainer",
+    "forge_trainer",
+    "git_ops",
+    "github_manager",
+    "github_scraper",
+    "github_webhook",
+    "harvester",
+    "hf_seeder",
+    "json_utils",
+    "llm",
+    "log_db",
+    "log_manager",
+    "main",
+    "master_logger",
+    "math_utils",
+    "memory",
+    "modal_trainer",
+    "models",
+    "multi_repo",
+    "orchestrator",
+    "parser",
+    "password",
+    "patch_engine",
+    "polyglot_compiler",
+    "pro_server",
+    "proactive",
+    "reflection_logger",
+    "repo_indexer",
+    "risk_gate",
+    "safe_math",
+    "safe_update",
+    "sandbox",
+    "scheduler",
+    "seed_memory",
+    "semantic_guard",
+    "semantic_watcher",
+    "silence_logs",
+    "simulate_complex",
+    "simulate_healing",
+    "strategy",
+    "string_utils",
+    "swarm",
+    "text_formatter",
+    "tier0_parser",
+    "trading_engine",
+    "trading_math",
+    "train_lora",
+    "train_terminal_cpu",
+    "triage",
+    "update_prompt",
+    "verifier"
+]

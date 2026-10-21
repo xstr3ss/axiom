@@ -1,0 +1,11 @@
+FROM python:3.11-slim
+
+# Set environment variables to prevent bytecode generation and caching
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+
+# Install testing and verification dependencies
+RUN pip install --no-cache-dir pytest z3-solver
+
+WORKDIR /workspace
