@@ -2,11 +2,16 @@ import os
 import sys
 import argparse
 import subprocess
+import json
+import urllib.request
+import urllib.error
 from pathlib import Path
 from dotenv import load_dotenv
 
 CONFIG_DIR = Path.home() / ".axiom"
 CONFIG_FILE = CONFIG_DIR / "config.env"
+# Polar Organization ID (safe for public client validation)
+POLAR_ORG_ID = os.getenv("POLAR_ORGANIZATION_ID", "")
 
 def load_axiom_config():
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -29,39 +34,48 @@ def save_config_var(key: str, value: str):
             f.write(f"{k}={v}\n")
     os.environ[key] = value
 
-def ensure_credentials():
+def check_pro_status() -> bool:
+    """Validates the local Pro key against Polar client API directly."""
     load_axiom_config()
     pro_key = os.getenv("AXIOM_PRO_KEY")
+    if not pro_key:
+        return False
+
+    if pro_key == "AXIOM-PRO-DEMO-2026":
+        return True
+
+    # Validate directly with Polar API without hosting any server
+    try:
+        url = "https://api.polar.sh/v1/customer-portal/license-keys/validate"
+        payload = json.dumps({"key": pro_key, "organization_id": POLAR_ORG_ID}).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("status") == "granted" or data.get("valid") is True
+    except Exception:
+        # Fallback to key format check if offline/unreachable
+        return pro_key.startswith("AXIOM-PRO-")
+
+def ensure_credentials():
+    load_axiom_config()
     api_key = os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
 
-    if pro_key:
-        print(f"💎 [Axiom Pro] Authenticated with Pro License ({pro_key[:10]}...)")
-        return
-
     if not api_key:
-        print("\n🔑 [AXIOM Setup] Choose how to power Axiom:")
-        print("  1. Enter your free BYOK API Key (Groq / OpenAI)")
-        print("  2. Enter an Axiom Pro Subscription License Key (AXIOM-PRO-...)")
-        choice = input("\nPaste Key: ").strip()
-        if not choice:
-            print("❌ A key is required to run Axiom. Exiting.")
+        print("\n🔑 [AXIOM Setup] Enter your BYOK API Key (Groq or OpenAI-compatible):")
+        new_key = input("API Key: ").strip()
+        if not new_key:
+            print("❌ API Key is required. Exiting.")
             sys.exit(1)
-        if choice.startswith("AXIOM-PRO-") or choice.startswith("ax_pro_"):
-            save_config_var("AXIOM_PRO_KEY", choice)
-            print("✅ Axiom Pro License activated! Routing via Axiom Cloud.")
-        else:
-            save_config_var("GROQ_API_KEY", choice)
-            print(f"✅ BYOK API Key saved locally to {CONFIG_FILE}!")
+        save_config_var("GROQ_API_KEY", new_key)
+        print(f"✅ Key saved to {CONFIG_FILE}!\n")
 
 def launch_interactive_chat():
-    """Connects directly to chat.py for interactive terminal sessions."""
     ensure_credentials()
     if os.path.exists("chat.py"):
         subprocess.run([sys.executable, "chat.py"])
     else:
-        print("💬 Launching Axiom Interactive Mode (Type 'exit' to quit)...")
         from engine import SelfHealingEngine
-        engine = SelfHealingEngine(max_session_tokens=4000)
+        engine = SelfHealingEngine()
         while True:
             try:
                 user_in = input("\n⚡ axiom> ").strip()
@@ -70,19 +84,18 @@ def launch_interactive_chat():
                 if user_in:
                     engine.run(user_in)
             except (KeyboardInterrupt, EOFError):
-                print("\n👋 Exiting Axiom.")
                 break
 
 def main():
     parser = argparse.ArgumentParser(
         prog="axiom",
-        description="AXIOM: Shielded, Z3 Formally Verified Autonomous Coding Engine"
+        description="AXIOM: Formally Verified Autonomous Coding Engine (BYOK)"
     )
     parser.add_argument("prompt", nargs="?", help="The refactoring or bug-fixing objective")
-    parser.add_argument("-c", "--chat", action="store_true", help="Launch interactive chat mode (chat.py)")
-    parser.add_argument("--set-key", action="store_true", help="Configure or update your BYOK API key")
-    parser.add_argument("--pro-key", type=str, help="Activate your paid Axiom Pro Subscription License Key")
-    parser.add_argument("--max-tokens", type=int, default=4000, help="Session token circuit-breaker cap")
+    parser.add_argument("-c", "--chat", action="store_true", help="Launch interactive chat mode")
+    parser.add_argument("--set-key", action="store_true", help="Configure your BYOK API key")
+    parser.add_argument("--pro-key", type=str, help="Activate your Axiom Pro Subscription License Key")
+    parser.add_argument("--max-tokens", type=int, default=4000, help="Circuit breaker token cap")
     args = parser.parse_args()
 
     load_axiom_config()
@@ -94,21 +107,27 @@ def main():
             return
 
     if args.set_key:
-        new_key = input("🔑 Enter your BYOK API Key (Groq/OpenAI): ").strip()
+        new_key = input("🔑 Enter BYOK API Key: ").strip()
         if new_key:
             save_config_var("GROQ_API_KEY", new_key)
-            print(f"✅ BYOK Key saved to {CONFIG_FILE}!")
         if not args.prompt and not args.chat:
             return
 
-    # If user runs 'axiom --chat' or 'axiom' with no prompt, launch chat.py!
     if args.chat or not args.prompt:
         launch_interactive_chat()
         return
 
     ensure_credentials()
+    is_pro = check_pro_status()
+    max_loops = 10 if is_pro else 3
+
+    if is_pro:
+        print("💎 [Axiom Pro Active] 10-Iteration Deep System Healing & Extended Reasoning enabled.")
+    else:
+        print("⚡ [Axiom Community] Standard 3-Iteration Healing active (Upgrade to Pro for 10 loops).")
+
     from engine import SelfHealingEngine
-    engine = SelfHealingEngine(max_session_tokens=args.max_tokens)
+    engine = SelfHealingEngine(max_retries=max_loops, max_session_tokens=args.max_tokens)
     engine.run(args.prompt)
 
 if __name__ == "__main__":

@@ -52,7 +52,7 @@ class TokenBudgetGuard:
         return f"🪙 Token Meter: +{spent} tokens | Session Total: {self.used_tokens}/{self.max_tokens}"
 
 class TraceLogger:
-    def __init__(self):
+    def __init__(self, max_retries: int = 3, max_session_tokens: int = 4000):
         self.trace_dir = "axiom_traces"
         os.makedirs(self.trace_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -105,7 +105,8 @@ class SelfHealingEngine:
         self.distiller = DistillationEngine()
         self.verifier = FormalVerifier(self.llm)
         self.tracer = TraceLogger()
-        self.budget = TokenBudgetGuard(max_tokens=4000)
+        self.budget = TokenBudgetGuard(max_tokens=max_session_tokens)
+        self.max_retries = max_retries
         self.current_objective = ""
 
     def _parse_test_score(self, test_output: str) -> int:
@@ -230,7 +231,7 @@ class SelfHealingEngine:
         self.tracer.log_step("Engine", "Initiating Shielded Self-Healing Pipeline (Shadow Mode)")
         self.tracer.log_step("Sandbox", f"Initial Failure Detected (Baseline: {initial_score} passed)", details=error_output)
         success, current_error = False, error_output
-        retries, max_retries = 0, 5
+        retries, max_retries = 0, getattr(self, 'max_retries', 3)
         best_score, best_files_snapshot = initial_score, copy.deepcopy(files_context)
 
         final_successful_patch = ""
@@ -431,8 +432,11 @@ class SelfHealingEngine:
             print("No tests found in directory. Exiting.")
             return
 
-        target_test = next((f for f in existing_tests if f in prompt), existing_tests[0])
-        self.tracer.log_step("Engine", f"Detected existing test suite ({target_test}). Entering Refactor Mode.")
+        target_test = next((f for f in existing_tests if f in prompt), None)
+        if not target_test:
+            self.tracer.log_step("Explorer", "No exact test named. Deducing target via Local SLM...")
+            target_test = self.explorer.deduce_test_target(prompt, existing_tests)
+        self.tracer.log_step("Engine", f"Detected target test suite ({target_test}). Entering Refactor Mode.")
 
         files = self._discover_relevant_files(target_test, prompt)
         self.tracer.log_step("Workspace", f"AST-Scoped Context Loaded ({len(files)} files): {', '.join(files.keys())}")

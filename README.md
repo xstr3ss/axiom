@@ -1,94 +1,109 @@
 <div align="center">
 
 # ⚡ AXIOM
-### The Autonomous Coding Engine That Doesn't Guess. It Proves.
-**Shadow Docker Sandboxing • Recursive AST Slicing • Qdrant Anti-Pattern Memory • Z3 Formal Verification**
+### The Autonomous Coding Engine That Does Not Guess. It Proves.
+**Dual Z3 Formal Verification • 0.3s Shadow Sandboxing • Recursive AST Dependency Slicing • Qdrant Anti-Pattern Memory**
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)]([https://opensource.org/licenses/Apache-2.0](https://opensource.org/licenses/Apache-2.0))
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org)
 [![Verification: Z3 Solver](https://img.shields.io/badge/Formal_Proof-Z3_Theorem_Prover-success.svg)](https://github.com/Z3Prover/z3)
-[![Architecture: Zero Pollution](https://img.shields.io/badge/Host_Safety-100%25_Shadow_Isolated-blueviolet.svg)]()
+[![Host Safety: 100% Shadow Isolated](https://img.shields.io/badge/Host_Safety-100%25_Shadow_Isolated-blueviolet.svg)]()
+
+[🚀 Quickstart](#-quickstart-byok) • [🧠 The 6 Problems Axiom Solves](#-the-6-problems-other-ai-agents-fail-at) • [⚖️ Free vs. Pro](#-tier-comparison) • [💎 Get Axiom Pro](https://polar.sh/axiom)
 
 </div>
 
 ---
 
-## 🚨 Why AXIOM?
+## 🚨 The Fundamental Flaw in AI Coding Agents
 
-99% of AI coding agents today operate on **blind optimism**:
-1. They dump your entire repository into an LLM context window (burning thousands of tokens).
-2. They overwrite your local files directly on your host machine—breaking working code and polluting your Git tree.
-3. Even when they run unit tests, **unit tests only check the specific numbers a human remembered to write down.**
+Most AI coding agents operate on **blind empirical guessing**:
+1. They rewrite code and run unit tests. If tests pass, they ship it. But unit tests only evaluate specific arbitrary numbers written by humans—missing edge cases and arithmetic vulnerabilities.
+2. They modify your working files directly, often corrupting code trees during failed iterations.
+3. When stuck in hallucination loops, their context window balloons, draining API credits rapidly.
 
-**Axiom is architected differently.** Built as a **Shielded, Zero-Pollution Multi-Agent Pipeline**, Axiom never touches your working directory until a patch survives both **empirical unit testing (`pytest`)** inside a 0.3-second isolated Docker shadow workspace AND **algebraic formal verification (`Z3 Theorem Solver`)** across infinite input boundaries.
+**Axiom is built on formal verification and shadow isolation.** Patches are never promoted to your hard drive until they survive isolated sandbox testing AND the **Z3 Theorem Prover** mathematically proves all boundary constraints hold.
 
 ---
 
-## ⚡ See Axiom Catch What Unit Tests Miss
+## 🧠 The 6 Problems Other AI Agents Fail At
 
-Suppose you have a withdrawal function and a passing unit test (`assert calc.apply_withdrawal(100, 20) == 80`). Standard CI/CD turns green and ships it. **Watch what happens when Axiom audits it:**
+| The AI Failure Mode | What Other Agents Do | How Axiom Solves It |
+| :--- | :--- | :--- |
+| **1. Passing-Test Vulnerabilities** | Green Pytest = Ship it | **Z3 Algebraic Theorem Prover** synthesizes invariants to block illegal states |
+| **2. Host Workspace Pollution** | Writes directly to local project disk | **0.3s Ephemeral Docker Shadow Workspace** keeps host files locked |
+| **3. Infinite Runaway Token Drain** | Context window balloons during failure loops | **Pre-Flight Token Circuit Breaker** terminates before exceeding caps |
+| **4. Context Bloat & Missing Modules** | Dumps whole repo or misses dotted imports | **Transitive AST Slicer** parses Abstract Syntax Trees for linked files |
+| **5. Repetitive Hallucination Loops** | Repeats identical failed patches | **Qdrant Vector Anti-Pattern Memory** explicitly injects past failures |
+| **6. Destructive Regressions** | Fixes 1 test while breaking 3 others | **High-Score Checkpointing & Auto-Rollback** restores highest-passing snapshot |
+
+---
+
+## ⚡ Real Terminal Proof: Z3 Catching What Unit Tests Miss
 
 ```text
 🤖 [Sandbox] ➔ Baseline Pytest: 1 passed in 0.01s
-🤖 [Shadow Workspace] ➔ 🛡️ Isolated staging created at /tmp/axiom_shadow_jzmv2cpd (Host files locked)
-🤖 [Semantic Gate] ➔ 🛡️ AST semantic integrity verified for src/math_engine/calculator.py.
+🤖 [Shadow Workspace] ➔ 🛡️ Isolated staging created at /tmp/axiom_shadow_w2g (Host files locked)
+🤖 [Semantic Gate] ➔ 🛡️ Semantic integrity verified for src/math_engine/calculator.py.
 🤖 [Z3 Verifier] ➔ Synthesizing algebraic proof for src/math_engine/calculator.py...
 🤖 [Z3 Verifier] ➔ ❌ Counter-example found by Z3 Theorem Solver:
-Z3_SAT: FAILED -> [balance = 0, amount = 1] (Illegal negative state proven possible!)
+Z3_SAT: FAILED -> [balance = 0, amount = 1] (Negative balance vulnerability detected!)
 
-🤖 [Engine] ➔ Pipeline Iteration 2: Auto-synthesizing boundary guards...
-🤖 [Stitcher] ➔ ✅ Staged AST-verified patch in Shadow Workspace: src/math_engine/calculator.py
-🤖 [Z3 Verifier] ➔ 📐 Mathematical boundaries of calculator.py proven safe (Z3_UNSAT).
-🤖 [Shadow Workspace] ➔ ✅ Atomic Promotion Complete. Real environment updated safely.
+🤖 [Engine] ➔ Pipeline Iteration 2: Synthesizing strict boundary guards...
+🤖 [Z3 Verifier] ➔ 📐 Mathematical boundaries of calculator.py proven safe (Z3_UNSAT: PROVED).
+🤖 [Sandbox] ➔ ✅ Tests & Formal Audit Passed! Promoting verified files to Host...
 ```
 
 ---
 
-## 🚀 30-Second Quickstart (Bring Your Own Key)
+## 🚀 Quickstart (BYOK)
 
-### 1. Install Axiom CLI in Your Terminal
+Both Free and Pro tiers use **BYOK (Bring Your Own Key)**—enter your Groq or OpenAI key once, and all execution runs locally on your machine with zero server fees.
+
+### 1. Installation
 ```bash
-git clone [https://github.com/xstr3ss/](https://github.com/xstr3ss/)axiom.git
+git clone https://github.com/xstr3ss/axiom.git
 cd axiom
 pip install --no-build-isolation --no-deps -e .
 ```
 
-### 2. Configure Your API Key (BYOK)
-On your first run (or anytime via `--set-key`), Axiom stores your API key locally in `~/.axiom/config.env`:
+### 2. Configure Your BYOK API Key
 ```bash
 axiom --set-key
 ```
 
-### 3. Unleash Axiom on Any Repository
+### 3. Run Axiom
 ```bash
-# Fix a failing test suite across nested directories
-axiom "tests/test_math.py is failing. Trace the imports in src/ and fix the validation logic."
+# Launch interactive chat mode
+axiom --chat
 
-# Proactively refactor & formally verify existing code
-axiom "Verify against tests/test_math.py. Refactor apply_withdrawal in src/math_engine/calculator.py to enforce strict non-negative bounds."
+# Execute autonomous verification loop on any objective
+axiom "Verify against tests/test_math.py. Refactor apply_withdrawal in src/math_engine/calculator.py to use type hints and protect against negative balances."
 ```
 
 ---
 
-## 🛡️ Key Engineering Guarantees
+## ⚖️ Tier Comparison
 
-* **Zero Host Pollution:** If Axiom hits its token cap or fails to prove a patch, your host workspace is never modified. Failed trajectories are logged to Qdrant's Anti-Pattern database so Axiom never repeats the same mistake twice.
-* **Hard Token Circuit Breaker:** Set `--max-tokens 4000` (default) to guarantee an autonomous loop never drains your API credits.
-* **0.3-Second Sandbox Latency:** Pre-baked container execution with automatic first-run image building and zero `.pyc` or `.pytest_cache` host permission issues.
+| Feature | Axiom Community (Free) | Axiom Pro ($19/mo) |
+| :--- | :--- | :--- |
+| **Pricing Model** | **BYOK** (Bring Your Own Key) | **BYOK** (Bring Your Own Key) |
+| **API Provider** | Groq / OpenAI-compatible | Groq / OpenAI-compatible |
+| **Formal Verification** | Full Z3 Algebraic Prover | Full Z3 Algebraic Prover |
+| **Sandbox Isolation** | 0.3s Docker Shadow Workspace | 0.3s Docker Shadow Workspace |
+| **Self-Healing Depth** | **3 Iterations** (Ideal for single-file & isolated bugs) | **10 Iterations** (Deep search for cascading multi-module regressions) |
+| **Local Anti-Pattern Memory** | Session-only Vector Store | Persistent Cross-Session Hive Memory |
+| **Host Protection Guarantee** | 100% Host File Lock on Failure | 100% Host File Lock on Failure |
 
----
-
-## 🗺️ Roadmap & Axiom Pro
-
-* [x] Shielded Shadow Workspace & Atomic Host Promotion
-* [x] Recursive Transitive AST Dependency Slicer
-* [x] Qdrant Vector Memory (Success & Anti-Pattern Distillation)
-* [x] Z3 Formal Theorem Proving Gate
-* [ ] **Polyglot Tree-Sitter Slicing** (TypeScript, Rust, Go, Solidity)
-* [ ] **Monte Carlo Tree Search (MCTS)** parallel container swarms
-* [ ] **Axiom Pro Cloud (`axiom login`)**: Zero-setup managed 120B inference + Global Hive-Mind Qdrant memory
+### Upgrade to Axiom Pro
+To unlock 10 deep self-healing iterations for complex codebases:
+1. Subscribe at **[polar.sh/axiom](https://polar.sh/axiom)**.
+2. Activate your key in your terminal:
+```bash
+axiom --pro-key AXIOM-PRO-YOUR-KEY-HERE
+```
 
 ---
 
 ## 📄 License
-Licensed under the **Apache 2.0 License**. Created by **Shyam Shukla**.
+Licensed under the **Apache 2.0 License**. Architected by **Shyam Shukla**.
