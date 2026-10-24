@@ -30,7 +30,10 @@ class TokenBudgetExceeded(Exception):
 
 class TokenBudgetGuard:
     def __init__(self, max_tokens: int = 12000):
-        self.max_tokens = int(os.getenv("FABLE_MAX_TOKENS", max_tokens))
+        try:
+            self.max_tokens = max(100, int(os.getenv("FABLE_MAX_TOKENS", max_tokens)))
+        except (ValueError, TypeError):
+            self.max_tokens = max_tokens
         self.used_tokens = 0
 
     @staticmethod

@@ -62,7 +62,7 @@ Both Free and Pro tiers use **BYOK (Bring Your Own Key)**—enter your Groq or O
 
 ### 1. Installation
 ```bash
-git clone https://github.com/xstr3ss/axiom.git
+git clone https://github.com/xstr3ss/axiom-ai.git
 cd axiom
 pip install --no-build-isolation --no-deps -e .
 ```

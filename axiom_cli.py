@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import argparse
 import subprocess  # nosec B404
@@ -10,17 +11,25 @@ from dotenv import load_dotenv
 
 CONFIG_DIR = Path.home() / ".axiom"
 CONFIG_FILE = CONFIG_DIR / "config.env"
-# Polar Organization ID (safe for public client validation)
+BASE_DIR = Path(__file__).resolve().parent
 POLAR_ORG_ID = os.getenv("POLAR_ORGANIZATION_ID", "")
 
+KEY_PATTERN = re.compile(r"^[A-Za-z0-9_\-\.]{10,256}$")
+
 def load_axiom_config():
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     if CONFIG_FILE.exists():
         load_dotenv(CONFIG_FILE, override=True)
-    load_dotenv()
 
 def save_config_var(key: str, value: str):
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    clean_key = key.replace("\n", "").replace("\r", "").strip()
+    clean_val = value.replace("\n", "").replace("\r", "").strip()
+    if not clean_key.isidentifier():
+        raise ValueError("Security Block: Invalid configuration key format.")
+    if not KEY_PATTERN.match(clean_val):
+        raise ValueError("Security Block: Invalid key characters or length.")
+
     existing = {}
     if CONFIG_FILE.exists():
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -28,37 +37,38 @@ def save_config_var(key: str, value: str):
                 if "=" in line:
                     k, v = line.strip().split("=", 1)
                     existing[k] = v
-    existing[key] = value
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+    existing[clean_key] = clean_val
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    fd = os.open(CONFIG_FILE, flags, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         for k, v in existing.items():
             f.write(f"{k}={v}\n")
-    os.environ[key] = value
+    os.chmod(CONFIG_FILE, 0o600)
+    os.environ[clean_key] = clean_val
 
 def check_pro_status() -> bool:
     """Validates the local Pro key against Polar client API directly."""
     load_axiom_config()
     pro_key = os.getenv("AXIOM_PRO_KEY")
-    if not pro_key:
+    if not pro_key or not KEY_PATTERN.match(pro_key):
         return False
 
-    if pro_key == "AXIOM-PRO-DEMO-2026":
-        return True
-
-    # Validate directly with Polar API without hosting any server
     try:
         url = "https://api.polar.sh/v1/subscriptions/validate"
-        payload = json.dumps({"license_key": pro_key}).encode('utf-8')
-        
-        if not url.startswith(("http://", "https://")):
-            raise ValueError("Security Block: Invalid URL scheme.")
-            
+        payload = json.dumps({"license_key": pro_key}).encode("utf-8")
+
+        if not url.startswith("https://"):
+            raise ValueError("Security Block: Only HTTPS URLs are permitted.")
+
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=4) as resp:  # nosec B310
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("status") == "granted" or data.get("valid") is True
+    except urllib.error.URLError:
+        return False
     except Exception:
-        # Fallback to key format check if offline/unreachable
-        return pro_key.startswith("AXIOM-PRO-")
+        return False
 
 def ensure_credentials():
     load_axiom_config()
@@ -67,16 +77,17 @@ def ensure_credentials():
     if not api_key:
         print("\n🔑 [AXIOM Setup] Enter your BYOK API Key (Groq or OpenAI-compatible):")
         new_key = input("API Key: ").strip()
-        if not new_key:
-            print("❌ API Key is required. Exiting.")
+        if not KEY_PATTERN.match(new_key):
+            print("❌ Invalid API Key format. Exiting.")
             sys.exit(1)
         save_config_var("GROQ_API_KEY", new_key)
-        print(f"✅ Key saved to {CONFIG_FILE}!\n")
+        print(f"✅ Key saved securely (0600) to {CONFIG_FILE}!\n")
 
 def launch_interactive_chat():
     ensure_credentials()
-    if os.path.exists("chat.py"):
-        subprocess.run([sys.executable, "chat.py"])  # nosec B603
+    chat_script = BASE_DIR / "chat.py"
+    if chat_script.is_file():
+        subprocess.run([sys.executable, str(chat_script)], check=False)  # nosec B603
     else:
         from engine import SelfHealingEngine
         engine = SelfHealingEngine()
@@ -106,7 +117,7 @@ def main():
 
     if args.pro_key:
         save_config_var("AXIOM_PRO_KEY", args.pro_key.strip())
-        print(f"💎 Axiom Pro License saved to {CONFIG_FILE}!")
+        print(f"💎 Axiom Pro License saved securely to {CONFIG_FILE}!")
         if not args.prompt and not args.chat:
             return
 

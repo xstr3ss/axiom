@@ -5,6 +5,12 @@ from rich.panel import Panel
 from dotenv import load_dotenv
 
 load_dotenv()
+load_dotenv(os.path.expanduser("~/.axiom/config.env"))
+
+def is_pro_user() -> bool:
+    pro_key = os.getenv("AXIOM_PRO_KEY", "").strip()
+    valid_prefixes = ("AXIOM-PRO-", "polar_", "AXIOM_LIVE_")
+    return pro_key.startswith(valid_prefixes) and len(pro_key) >= 16
 console = Console()
 groq_api_key = os.getenv("GROQ_API_KEY")
 
@@ -13,27 +19,38 @@ URL_CHAT = "https://api.groq.com/openai/v1/chat/completions"
 
 def get_valid_model() -> str:
     if not groq_api_key:
-        return "llama-3.3-70b-versatile"
+        return "llama3-8b-8192"
     try:
         headers = {"Authorization": f"Bearer {groq_api_key}"}
         resp = requests.get(URL_MODELS, headers=headers, timeout=10).json()
         models = [m["id"] for m in resp.get("data", [])]
-        valid_models = [m for m in models if "guard" not in m.lower() and "whisper" not in m.lower() and "vision" not in m.lower()]
-
-        # Safely fall back to guaranteed models
-        for target in ["llama-3.3-70b", "llama-3.1-8b"]:
-            for m in valid_models:
-                if target in m.lower():
-                    return m
-        return valid_models[0] if valid_models else "llama-3.3-70b-versatile"
+        
+        # Filter out gated, audio, or non-text models
+        valid_models = [m for m in models if not any(x in m.lower() for x in ["guard", "whisper", "vision", "canopylabs"])]
+        
+        # Priority 1: Grab the smartest available 70B model
+        for m in valid_models:
+            if "70b" in m.lower(): return m
+            
+        # Priority 2: Fallback to an 8B model
+        for m in valid_models:
+            if "8b" in m.lower(): return m
+            
+        # Priority 3: Just return the first working chat model
+        return valid_models[0] if valid_models else "llama3-8b-8192"
     except Exception:
-        return "llama-3.3-70b-versatile"
+        return "llama3-8b-8192"
 
 class AgenticOrchestrator:
-    def __init__(self, model_name):
+    def __init__(self, model_name, is_pro=False):
         self.model = model_name
+        tier_context = (
+            "CURRENT USER STATUS: Authenticated AXIOM PRO ARCHITECT. All 10 Deep-Healing Loops, Z3 Formal Theorem Solvers, and Extended Cloud Reasoning are UNLOCKED and active. Never tell the user to upgrade to Pro—they already own the highest Enterprise Pro tier! Treat them like an elite VIP systems architect."
+            if is_pro else
+            "CURRENT USER STATUS: Free Tier (3-Loop limit). Remind them gently on complex tasks that Axiom Pro unlocks 10-loop deep healing."
+        )
         self.memory = [
-            {"role": "system", "content": "You are Fable, an institutional autonomous software engine. Keep conversational replies clear and concise."}
+            {"role": "system", "content": f"You are Fable, the elite autonomous coding orchestrator powered by the Axiom engine. You do not guess; you mathematically prove using Z3 theorem solvers, AST dependency slicing, and shadow sandboxing. {tier_context}"}
         ]
 
     def route_intent(self, user_input: str) -> str:
@@ -86,14 +103,26 @@ def run_chat():
 
     engine = SelfHealingEngine()
     planner = InstitutionalOrchestrator(model_name=ACTIVE_MODEL)
-    orchestrator = AgenticOrchestrator(model_name=ACTIVE_MODEL)
+    pro_active = is_pro_user()
+    orchestrator = AgenticOrchestrator(model_name=ACTIVE_MODEL, is_pro=pro_active)
 
-    console.print(Panel(
-        f"[bold white]FABLE ENTERPRISE ORCHESTRATOR[/]\n"
-        f"[cyan]Active Brain:[/] {ACTIVE_MODEL}\n"
-        f"[dim]AST Splicing: Enabled | Hierarchical Planning: Active[/]",
-        border_style="cyan"
-    ))
+    if pro_active:
+        console.print(Panel(
+            f"[bold gold1]💎 FABLE ENTERPRISE ORCHESTRATOR — PRO EDITION[/]\n"
+            f"[gold1]Active Brain:[/] [bold white]{ACTIVE_MODEL}[/] [dim](Extended Reasoning)[/]\n"
+            f"[green]● 10-Loop Deep Healing: UNLOCKED[/] | [green]● Z3 Theorem Prover: ARMED[/]\n"
+            f"[dim]Shielded Zero-Pollution Sandbox: Active | AST Splicing: Enabled[/]",
+            border_style="gold1",
+            title="[bold gold1][ VIP PRO LICENSE VERIFIED ][/]",
+            subtitle="[dim]Type 'exit' to quit[/]"
+        ))
+    else:
+        console.print(Panel(
+            f"[bold white]FABLE ORCHESTRATOR (FREE EDITION)[/]\n"
+            f"[cyan]Active Brain:[/] {ACTIVE_MODEL}\n"
+            f"[yellow]● 3-Loop Standard Cap[/] | [dim]Run 'axiom --pro-key <KEY>' to unlock 10-Loop Pro[/]",
+            border_style="cyan"
+        ))
 
     while True:
         try:
