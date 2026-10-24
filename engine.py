@@ -94,7 +94,7 @@ class TraceLogger:
         self.log_step(agent_name, action, details=details)
 
 class SelfHealingEngine:
-    def __init__(self):
+    def __init__(self, max_retries: int = 3, max_session_tokens: int = 4000):
         log.info("🚨 [Engine] Initializing Shielded Zero-Pollution Architecture...")
         self.cfg = Config()
         self.llm = LLMClient(self.cfg)
@@ -411,7 +411,13 @@ class SelfHealingEngine:
                         self.memory.store(text=final_condensed_error, metadata={"failed_patches": [f["patch"] for f in in_session_failures], "type": "anti_pattern"})
                     self.tracer.log_step("Memory", "✅ Saved anti-pattern vector to memory (Host workspace remained untouched).")
                 except Exception as e:
-                    pass
+                            self.tracer.log_step("Warning", f"Vector memory save failed: {e}")
+
+        
+        if getattr(self, 'max_retries', 3) <= 3:
+            print("\n✨ Axiom Community Edition (3/3 loops used)")
+            print("💡 Deep, multi-module architectural bugs often require wider reasoning runway.")
+            print("👉 To unlock 10 loops: Upgrade at polar.sh/axiom and run `axiom --pro-key <KEY>`\n")
 
         return success
 
