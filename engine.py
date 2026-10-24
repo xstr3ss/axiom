@@ -471,7 +471,9 @@ if __name__ == "__main__":
 
 
 
+
 # === AXIOM ENTERPRISE 6-PILLAR LIFECYCLE HOOKS ===
+import os
 import inspect
 from axiom_enterprise import (
     SelfTDDGenerator,
@@ -495,38 +497,43 @@ if "run_tests" in globals():
             _call_orig, test_target=test_target, workspace_dir=workspace_dir
         )
 
-# 2. Pre-Flight AST Security Gate Hook
+# 2. Pre-Flight AST Security Gate Hook (Signature-Adaptive)
 _orig_stitch_patch = SelfHealingEngine._stitch_patch
-def _enterprise_stitch_patch(self, shadow_dir, filename, search_block, replace_block):
-    stitched = _orig_stitch_patch(self, shadow_dir, filename, search_block, replace_block)
-    if stitched and filename.endswith(".py"):
-        shadow_file = os.path.join(shadow_dir, filename)
-        if os.path.exists(shadow_file):
-            with open(shadow_file, "r", encoding="utf-8") as f:
-                patched_code = f.read()
-            passed, _ = PreFlightSecurityScanner.scan_code(filename, patched_code, tracer=getattr(self, "tracer", None))
-            if not passed:
-                return False
+_stitch_sig = inspect.signature(_orig_stitch_patch)
+def _enterprise_stitch_patch(self, *args, **kwargs):
+    stitched = _orig_stitch_patch(self, *args, **kwargs)
+    try:
+        bound = _stitch_sig.bind_partial(self, *args, **kwargs)
+        bound.apply_defaults()
+        filename = bound.arguments.get("filename")
+        shadow_dir = bound.arguments.get("shadow_dir")
+        
+        if stitched and filename and filename.endswith(".py") and shadow_dir:
+            shadow_file = os.path.join(shadow_dir, filename)
+            if os.path.exists(shadow_file):
+                with open(shadow_file, "r", encoding="utf-8") as f:
+                    patched_code = f.read()
+                passed, _ = PreFlightSecurityScanner.scan_code(filename, patched_code, tracer=getattr(self, "tracer", None))
+                if not passed:
+                    return False
+    except Exception:
+        pass
     return stitched
 SelfHealingEngine._stitch_patch = _enterprise_stitch_patch
 
 # 3. Signature-Safe Diff Review & PR Pipeline Hook
 _orig_resolve_error = SelfHealingEngine.resolve_error
 _resolve_sig = inspect.signature(_orig_resolve_error)
-
 def _enterprise_resolve_error(self, *args, **kwargs):
-    # Extract files map to snapshot host state before healing
     bound = _resolve_sig.bind_partial(self, *args, **kwargs)
     bound.apply_defaults()
     files = bound.arguments.get("files") or {}
     prompt = bound.arguments.get("prompt", "")
     host_snapshot = dict(files) if isinstance(files, dict) else {}
 
-    # Filter arguments strictly to what original resolve_error accepts
     orig_kwargs = {k: v for k, v in bound.arguments.items() if k != "self" and k in _resolve_sig.parameters}
     result = _orig_resolve_error(self, **orig_kwargs)
 
-    # Post-heal verification and interactive diff
     if host_snapshot:
         updated_files = {}
         for fpath in host_snapshot:
