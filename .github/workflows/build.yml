@@ -1,0 +1,60 @@
+name: Axiom Cross-Platform Nuitka Binary Matrix
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  compile-matrix:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary_name: axiom-linux
+            out_flag: --output-filename=axiom-linux
+          - os: macos-latest
+            binary_name: axiom-macos
+            out_flag: --output-filename=axiom-macos
+          - os: windows-latest
+            binary_name: axiom.exe
+            out_flag: --output-filename=axiom.exe
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Nuitka & Build Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install nuitka zstandard python-dotenv
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Compile Standalone Native Binary with Nuitka
+        run: |
+          python -m nuitka --onefile --assume-yes-for-downloads ${{ matrix.out_flag }} axiom_cli.py
+
+      - name: Upload Compiled Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary_name }}
+          path: ${{ matrix.binary_name }}
+
+      - name: Attach Binaries to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.binary_name }}

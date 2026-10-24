@@ -468,3 +468,69 @@ if __name__ == "__main__":
     import sys
     prompt = sys.argv[1] if len(sys.argv) > 1 else "Fix the bugs"
     SelfHealingEngine().run(prompt)
+
+
+# === AXIOM ENTERPRISE 6-PILLAR LIFECYCLE HOOKS ===
+from axiom_enterprise import (
+    SelfTDDGenerator,
+    PreFlightSecurityScanner,
+    InteractiveDiffReviewer,
+    GitPRPipeline,
+    FallbackSandboxRunner,
+)
+
+# 1. Wrap run_tests with Lightweight Non-Docker Fallback Sandbox
+if "run_tests" in globals():
+    _orig_run_tests = run_tests
+    def run_tests(test_target=None, workspace_dir=None):
+        return FallbackSandboxRunner.run_tests_with_fallback(
+            _orig_run_tests, test_target=test_target, workspace_dir=workspace_dir
+        )
+
+# 2. Wrap _stitch_patch with Pre-Flight Static Security Scanner (SQLi, XSS, Secrets, Eval)
+_orig_stitch_patch = SelfHealingEngine._stitch_patch
+def _enterprise_stitch_patch(self, shadow_dir, filename, search_block, replace_block):
+    stitched = _orig_stitch_patch(self, shadow_dir, filename, search_block, replace_block)
+    if stitched and filename.endswith(".py"):
+        shadow_file = os.path.join(shadow_dir, filename)
+        if os.path.exists(shadow_file):
+            with open(shadow_file, "r", encoding="utf-8") as f:
+                patched_code = f.read()
+            passed, _ = PreFlightSecurityScanner.scan_code(filename, patched_code, tracer=getattr(self, "tracer", None))
+            if not passed:
+                return False
+    return stitched
+SelfHealingEngine._stitch_patch = _enterprise_stitch_patch
+
+# 3. Wrap resolve_error with Interactive Diff-Review & Automated Git Branch/PR Pipeline
+_orig_resolve_error = SelfHealingEngine.resolve_error
+def _enterprise_resolve_error(self, error_msg, files, prompt="", initial_score=0, target_test=None):
+    host_snapshot = dict(files) if isinstance(files, dict) else {}
+    result = _orig_resolve_error(self, error_msg, files, prompt=prompt, initial_score=initial_score, target_test=target_test)
+    if host_snapshot:
+        updated_files = {}
+        for fpath in host_snapshot:
+            if os.path.exists(fpath):
+                with open(fpath, "r", encoding="utf-8") as f:
+                    updated_files[fpath] = f.read()
+        if any(host_snapshot.get(k) != updated_files.get(k) for k in host_snapshot):
+            approved = InteractiveDiffReviewer.review_and_confirm(host_snapshot, updated_files)
+            if not approved:
+                for fpath, orig_text in host_snapshot.items():
+                    with open(fpath, "w", encoding="utf-8") as f:
+                        f.write(orig_text)
+                return False
+            GitPRPipeline.branch_commit_and_pr(prompt or "autonomous-heal", tracer=getattr(self, "tracer", None))
+    return result
+SelfHealingEngine.resolve_error = _enterprise_resolve_error
+
+# 4. Wrap run with Self-TDD Reproduction Test Generator
+_orig_engine_run = SelfHealingEngine.run
+def _enterprise_run(self, prompt: str):
+    SelfTDDGenerator.ensure_reproduction_test(
+        prompt,
+        llm_client=getattr(self, "llm", None),
+        tracer=getattr(self, "tracer", None),
+    )
+    return _orig_engine_run(self, prompt)
+SelfHealingEngine.run = _enterprise_run

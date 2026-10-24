@@ -107,3 +107,14 @@ axiom --pro-key AXIOM-PRO-YOUR-KEY-HERE
 
 ## 📄 License
 Licensed under the **Apache 2.0 License**. Architected by **Shyam Shukla**.
+
+## 🛡️ Axiom Enterprise 6-Gate Architecture
+
+| Gate | Capability | Mechanism |
+|---|---|---|
+| **1. Self-TDD** | Automated Test Synthesis | Synthesizes `test_axiom_repro.py` automatically when no unit tests exist |
+| **2. Pre-Flight AST Security** | SQLi, XSS & Secret Blocker | Blocks `eval()`, `shell=True`, raw SQL formatting, and leaked API keys before Z3 |
+| **3. Cross-Platform Matrix** | Native Binary Releases | GitHub Actions Nuitka matrix compiling `axiom-linux`, `axiom-macos`, and `axiom.exe` |
+| **4. Git & PR Pipeline** | Automated Branch & PRs | Creates `axiom/fix-*` branches and opens verified Pull Requests via `gh pr create` |
+| **5. Human-in-the-Loop Diff** | Interactive Diff Review | Colorized unified diff viewer with `[y/N/edit]` confirmation before host promotion |
+| **6. Fallback Sandbox** | Zero-Docker Execution | Automatically falls back to an isolated, env-sanitized local `venv` if Docker is offline |
