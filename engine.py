@@ -470,7 +470,9 @@ if __name__ == "__main__":
     SelfHealingEngine().run(prompt)
 
 
+
 # === AXIOM ENTERPRISE 6-PILLAR LIFECYCLE HOOKS ===
+import inspect
 from axiom_enterprise import (
     SelfTDDGenerator,
     PreFlightSecurityScanner,
@@ -479,15 +481,21 @@ from axiom_enterprise import (
     FallbackSandboxRunner,
 )
 
-# 1. Wrap run_tests with Lightweight Non-Docker Fallback Sandbox
+# 1. Flexible Sandbox Hook (signature-adaptive)
 if "run_tests" in globals():
     _orig_run_tests = run_tests
-    def run_tests(test_target=None, workspace_dir=None):
+    def run_tests(*args, **kwargs):
+        sig = inspect.signature(_orig_run_tests)
+        def _call_orig(**kw):
+            filtered = {k: v for k, v in kw.items() if k in sig.parameters}
+            return _orig_run_tests(**filtered)
+        test_target = kwargs.get("test_target") or (args[0] if args else None)
+        workspace_dir = kwargs.get("workspace_dir") or (args[1] if len(args) > 1 else None)
         return FallbackSandboxRunner.run_tests_with_fallback(
-            _orig_run_tests, test_target=test_target, workspace_dir=workspace_dir
+            _call_orig, test_target=test_target, workspace_dir=workspace_dir
         )
 
-# 2. Wrap _stitch_patch with Pre-Flight Static Security Scanner (SQLi, XSS, Secrets, Eval)
+# 2. Pre-Flight AST Security Gate Hook
 _orig_stitch_patch = SelfHealingEngine._stitch_patch
 def _enterprise_stitch_patch(self, shadow_dir, filename, search_block, replace_block):
     stitched = _orig_stitch_patch(self, shadow_dir, filename, search_block, replace_block)
@@ -502,11 +510,23 @@ def _enterprise_stitch_patch(self, shadow_dir, filename, search_block, replace_b
     return stitched
 SelfHealingEngine._stitch_patch = _enterprise_stitch_patch
 
-# 3. Wrap resolve_error with Interactive Diff-Review & Automated Git Branch/PR Pipeline
+# 3. Signature-Safe Diff Review & PR Pipeline Hook
 _orig_resolve_error = SelfHealingEngine.resolve_error
-def _enterprise_resolve_error(self, error_msg, files, prompt="", initial_score=0, target_test=None):
+_resolve_sig = inspect.signature(_orig_resolve_error)
+
+def _enterprise_resolve_error(self, *args, **kwargs):
+    # Extract files map to snapshot host state before healing
+    bound = _resolve_sig.bind_partial(self, *args, **kwargs)
+    bound.apply_defaults()
+    files = bound.arguments.get("files") or {}
+    prompt = bound.arguments.get("prompt", "")
     host_snapshot = dict(files) if isinstance(files, dict) else {}
-    result = _orig_resolve_error(self, error_msg, files, prompt=prompt, initial_score=initial_score, target_test=target_test)
+
+    # Filter arguments strictly to what original resolve_error accepts
+    orig_kwargs = {k: v for k, v in bound.arguments.items() if k != "self" and k in _resolve_sig.parameters}
+    result = _orig_resolve_error(self, **orig_kwargs)
+
+    # Post-heal verification and interactive diff
     if host_snapshot:
         updated_files = {}
         for fpath in host_snapshot:
@@ -524,7 +544,7 @@ def _enterprise_resolve_error(self, error_msg, files, prompt="", initial_score=0
     return result
 SelfHealingEngine.resolve_error = _enterprise_resolve_error
 
-# 4. Wrap run with Self-TDD Reproduction Test Generator
+# 4. Self-TDD Hook
 _orig_engine_run = SelfHealingEngine.run
 def _enterprise_run(self, prompt: str):
     SelfTDDGenerator.ensure_reproduction_test(
