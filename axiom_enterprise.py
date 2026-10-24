@@ -131,25 +131,33 @@ class PreFlightSecurityScanner:
         # 4. Deep AST Inspection (eval, exec, shell=True, SQLi f-strings in execute)
         try:
             tree = ast.parse(code_text, filename=filename)
+            tainted_vars = set()
+            
             for node in ast.walk(tree):
+                # 1. Taint Tracking: Record variables assigned to f-strings or binary ops
+                if isinstance(node, ast.Assign):
+                    if isinstance(node.value, (ast.JoinedStr, ast.BinOp)):
+                        for target in node.targets:
+                            if isinstance(target, ast.Name):
+                                tainted_vars.add(target.id)
+
+                # 2. Sink Tracking: Check if dangerous functions are called
                 if isinstance(node, ast.Call):
-                    # Check eval() / exec()
                     if isinstance(node.func, ast.Name) and node.func.id in {"eval", "exec"}:
                         findings.append(f"Line {node.lineno}: Dangerous `{node.func.id}()` call (CWE-95)")
 
-                    # Check subprocess(..., shell=True)
                     if isinstance(node.func, ast.Attribute) and node.func.attr in {"run", "Popen", "call"}:
                         for kw in node.keywords:
                             if kw.arg == "shell" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
                                 findings.append(f"Line {node.lineno}: Subprocess with `shell=True` (CWE-78)")
 
-                    # Check cursor.execute(f"SELECT ... {var}")
+                    # 3. SQLi Check (Direct String AND Tainted Variable)
                     if isinstance(node.func, ast.Attribute) and node.func.attr == "execute" and node.args:
                         first_arg = node.args[0]
                         if isinstance(first_arg, (ast.JoinedStr, ast.BinOp)):
-                            findings.append(
-                                f"Line {node.lineno}: Dynamic SQL query construction in `.execute()` (CWE-89)"
-                            )
+                            findings.append(f"Line {node.lineno}: Direct SQL Injection in `.execute()` (CWE-89)")
+                        elif isinstance(first_arg, ast.Name) and first_arg.id in tainted_vars:
+                            findings.append(f"Line {node.lineno}: Tainted variable '{first_arg.id}' passed to `.execute()` (CWE-89)")
         except SyntaxError as e:
             findings.append(f"Line {e.lineno}: SyntaxError during AST security scan")
 
