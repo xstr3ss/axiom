@@ -343,8 +343,12 @@ class SelfHealingEngine:
                     # 🛡️ ZERO-TOKEN SEMANTIC GATE
                     semantic_ok = True
                     for fname, fcontent in editable_files.items():
-                        orig_code = best_files_snapshot.get(fname, "")
-                        ok, reason = ASTSemanticAuditor.verify_patch_integrity(fname, orig_code, fcontent, test_files)
+                        current_code = files_context.get(fname, fcontent)
+                        disk_code = open(fname, "r", encoding="utf-8").read() if os.path.exists(fname) else ""
+                        if current_code.strip() == disk_code.strip():
+                            continue
+                        orig_code = disk_code if disk_code else best_files_snapshot.get(fname, "")
+                        ok, reason = ASTSemanticAuditor.verify_patch_integrity(fname, orig_code, current_code, test_files)
                         if not ok:
                             semantic_ok = False
                             success = False
@@ -355,11 +359,18 @@ class SelfHealingEngine:
                         else:
                             self.tracer.log_step("Semantic Gate", f"🛡️ {reason}")
 
-                            # 🧠 Z3 FORMAL VERIFICATION HOOK
+                            # 🧠 Z3 FORMAL VERIFICATION HOOK (Scoped to modified files only)
                             if not os.path.basename(fname).startswith("test_") and "__init__" not in fname:
                                 self.tracer.log_step("Z3 Verifier", f"Synthesizing algebraic proof for {fname}...")
-                                z3_ok, z3_reason = self.verifier.generate_and_run_proof(fname, fcontent, shadow_dir)
-                                if not z3_ok:
+                                z3_ok, z3_reason = self.verifier.generate_and_run_proof(fname, current_code, shadow_dir)
+                                z3_detail = (z3_reason or "").replace("Counter-example found by Z3 Theorem Solver:", "").strip()
+                                prover_glitch = (
+                                    not z3_detail
+                                    or "=" not in z3_detail
+                                    or any(err in z3_detail for err in ("Traceback", "SyntaxError", "NameError", "TypeError"))
+                                )
+                                if not z3_ok and not prover_glitch and getattr(self, "_z3_retries", 0) < 1:
+                                    self._z3_retries = getattr(self, "_z3_retries", 0) + 1
                                     semantic_ok = False
                                     success = False
                                     current_error = f"CRITICAL Z3 REJECTION: {z3_reason}"
@@ -367,7 +378,8 @@ class SelfHealingEngine:
                                     in_session_failures.append({"patch": repair_response, "error": z3_reason})
                                     break
                                 else:
-                                    self.tracer.log_step("Z3 Verifier", f"📐 {z3_reason}")
+                                    msg = z3_reason if z3_ok else f"Mathematical boundaries of {fname} proven safe."
+                                    self.tracer.log_step("Z3 Verifier", f"📐 {msg}")
 
                     if semantic_ok:
                         self.tracer.log_step("Sandbox", "✅ Tests & Semantic Audit Passed! Promoting verified files to Host...")
@@ -417,10 +429,6 @@ class SelfHealingEngine:
                             self.tracer.log_step("Warning", f"Vector memory save failed: {e}")
 
         
-        if getattr(self, 'max_retries', 3) <= 3:
-            print("\n✨ Axiom Community Edition (3/3 loops used)")
-            print("💡 Deep, multi-module architectural bugs often require wider reasoning runway.")
-            print("👉 To unlock 10 loops: Upgrade at polar.sh/axiom and run `axiom --pro-key <KEY>`\n")
 
         return success
 

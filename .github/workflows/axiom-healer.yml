@@ -1,0 +1,49 @@
+name: Axiom Autonomous Self-Healing CI
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_url:
+        description: 'GitHub Issue URL to heal'
+        required: true
+
+jobs:
+  autonomous-heal:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Qdrant Vector Memory
+        run: docker run -d -p 6333:6333 qdrant/qdrant
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt || true
+
+      - name: Execute Axiom 10-Loop Healing Engine
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          AXIOM_PRO_KEY: ${{ secrets.AXIOM_PRO_KEY }}
+        run: |
+          ISSUE_TARGET="${{ github.event.issue.html_url || github.event.inputs.issue_url }}"
+          python3 axiom_cli.py --pro-key "$AXIOM_PRO_KEY" --issue "$ISSUE_TARGET"
+
+      - name: Commit & Push Formally Verified Patch
+        run: |
+          git config user.name "axiom-bot"
+          git config user.email "bot@axiom.ai"
+          git add -A
+          git diff --staged --quiet || git commit -m "fix(axiom): Z3-verified autonomous patch for issue"
+          git push
