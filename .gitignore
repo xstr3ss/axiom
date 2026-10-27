@@ -46,3 +46,4 @@ dist/
 *.bin
 axiom_traces/
 qdrant_storage/
+public_release/
