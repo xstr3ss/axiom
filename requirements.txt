@@ -2,3 +2,9 @@ yfinance
 pandas
 numpy
 pytest
+python-dotenv
+requests
+groq
+qdrant-client
+z3-solver
+pytest
