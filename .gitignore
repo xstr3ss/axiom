@@ -41,3 +41,8 @@ test_auth.pyecho
 
 # Local environment secrets
 .env
+dist/
+*.dist/
+*.bin
+axiom_traces/
+qdrant_storage/
