@@ -2,6 +2,10 @@ import os
 import re
 import sys
 import argparse
+# --- GLOBAL SYMLINK PATH FIX ---
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
 import subprocess  # nosec B404
 import json
 import urllib.request

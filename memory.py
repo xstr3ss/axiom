@@ -53,26 +53,34 @@ class VectorMemory:
     def store_repair_context(self, error_signature: str, successful_code: str, file_path: str):
         text_to_embed = f"Error: {error_signature}\nFix: {successful_code}"
         vector = self._get_embedding(text_to_embed)
-        
+
         if not vector:
             return
+
+        # --- CROSS-PROJECT SCHEMA UPGRADE ---
+        project_id = os.path.basename(os.getcwd())
+        ext = os.path.splitext(file_path)[1].lower()
+        language_map = {".py": "python", ".js": "javascript", ".ts": "typescript", ".go": "go", ".rs": "rust"}
+        language = language_map.get(ext, "unknown")
 
         point = PointStruct(
             id=str(uuid.uuid4()),
             vector=vector,
             payload={
+                "project_id": project_id,
+                "language": language,
                 "error_signature": error_signature,
                 "file_path": file_path,
                 "code_snapshot": successful_code,
                 "type": "successful_repair"
             }
         )
-        
+
         self.client.upsert(
             collection_name=self.collection_name,
             points=[point]
         )
-        log.info("💾 [Memory] Repair sequence permanently indexed in Qdrant.")
+        log.info(f"💾 [Memory] Repair indexed globally (Project: {project_id} | Lang: {language}).")
 
     def recall_similar_errors(self, current_error: str, limit: int = 1) -> List[Dict[str, Any]]:
         vector = self._get_embedding(current_error)

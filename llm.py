@@ -60,7 +60,15 @@ class LLMClient:
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         
         # 🚀 STRICT BLUEPRINT ROUTING: The high-IQ models handle the heavy lifting
-        queue = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b", "allam-2-7b"]
+        # 🚀 DYNAMIC ROUTING & BYOM (Bring Your Own Model)
+        healer_model = os.getenv("AXIOM_HEALER_MODEL", "openai/gpt-oss-120b")
+        z3_model = os.getenv("AXIOM_Z3_MODEL", "llama-3.3-70b-versatile")
+        
+        # Route Z3 to a separate bucket to prevent TPM collision with the Healer
+        if "Z3" in agent_role:
+            queue = [z3_model, "llama-3.1-8b-instant"]
+        else:
+            queue = [healer_model, "openai/gpt-oss-20b", "qwen/qwen3.8-27b", "allam-2-7b"]
 
         for current_model in queue:
             max_tokens = 512 if "guard" in current_model.lower() else 2048
