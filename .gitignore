@@ -1,19 +1,43 @@
-*.bin
-*.build/
-*.dist/
-*.env
-*.gguf
-*.onefile-build/
-*.pyc
-.DS_Store
-.axiom/
-.env
-.pytest_cache/
-.venv/
+# Python bytecode & environments
 __pycache__/
-axiom_traces/
-config.env
-dist/
-proof_*.py
-qdrant_storage/
-venv/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases & storage volumes
+*.db
+*.sqlite3
+qdrant_data/
+qdrant_ledger_data/
+dataset_archives/
+audit_workspace/
+fable_evolved_weights/
+fable_evolved_weights.zip*
+*.csv
+distillation_dataset.jsonl
+memory_state.json
+scraper_checkpoint.json
+
+# Local runtime logs
+*.log
+forge_boot.log
+forge_cron.log
+ollama.log
+ollama_server.log
+
+# Editor backups and stray artifacts
+*.bak
+*.save
+*.save.*
+*Zone.Identifier
+.py
+1468/
+whack_a_mole_test/
+test_auth.p
+test_auth.pyecho
+
+# Local environment secrets
+.env
